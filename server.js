@@ -1,46 +1,65 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors'); // Add this line
+const cors = require('cors');
+const dotenv = require('dotenv');
 const { authenticateDatabase } = require('./config/db');
+
+// Import Routes
 const authRoutes = require('./routes/auth');
 const driverRoutes = require('./routes/driverRoutes');
-const fleetRoutes = require('./routes/fleetRoutes'); 
-const adminRoutes = require('./routes/adminRoutes')
-const tripRoutes = require('./routes/tripRoutes')
-const maintenanceRoutes = require('./routes/maintenanceRoutes')
-const fuelRoutes = require('./routes/fuelRoutes')
-
-const dotenv = require ('dotenv')
+const fleetRoutes = require('./routes/fleetRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const tripRoutes = require('./routes/tripRoutes');
+const maintenanceRoutes = require('./routes/maintenanceRoutes');
+const fuelRoutes = require('./routes/fuelRoutes');
 
 dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Middleware
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  process.env.FRONTEND_URL // Ensure frontend URL is in env for production
+];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174','http://localhost:5175'] // Add this line to allow requests from your frontend
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS not allowed for this origin'), false);
+  },
+  credentials: true
 }));
 
+// Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth', authRoutes);  // auth routes
-app.use('/api/drivers', driverRoutes); // Add the driver routes 
-app.use('/api/fleet', fleetRoutes); // Add the fleet routes 
-app.use('/api/admin', adminRoutes); // Add the admiin routes 
-app.use('/api/trip', tripRoutes); // Add the trip routes 
-app.use('/api/maintenance', maintenanceRoutes); // Add the maintenance routes 
-app.use('/api/fuel' , fuelRoutes);// Fuel Routes;
+app.use('/api/auth', authRoutes);
+app.use('/api/drivers', driverRoutes);
+app.use('/api/fleet', fleetRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/trip', tripRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/fuel', fuelRoutes);
 
-// Define a route to handle GET requests to the root URL ('/')
+// Root Route
 app.get('/', (req, res) => {
-  return res.send("API is working properly yup");
+  res.status(200).send("API is working properly!");
 });
 
-// Start the server and authenticate the database
+// Start Server & Authenticate Database
 app.listen(PORT, async () => {
-  console.log(`Server started successfully on http://localhost:${PORT}`);
-  await authenticateDatabase();
+  try {
+    await authenticateDatabase();
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+  } catch (error) {
+    console.error("❌ Database connection failed:", error);
+    process.exit(1); // Exit process if DB fails
+  }
 });
